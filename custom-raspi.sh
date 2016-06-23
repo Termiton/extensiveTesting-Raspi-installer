@@ -1,18 +1,37 @@
 #!/bin/sh
+
+# -------------------------------------------------------------------
+# Copyright (c) 2010-2016 Denis Machard
+# This file is part of the extensive testing project
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+# MA 02110-1301 USA
+# -------------------------------------------------------------------
+
 #====================================================================
 #
 #         USAGE:  ./custom-raspi.sh
 #
 #   DESCRIPTION:  Custom installation of the product
-#        TARGET:  Raspberry pi 2
 #
 #       OPTIONS:  ---
 #        AUTHOR:  Denis Machard
-#        AUTHOR:  Blaise Cador
 #====================================================================
 
 
-. /etc/rc.d/init.d/functions
+#. /etc/rc.d/init.d/functions
 
 # first check for root user
 if [ ! $UID -eq 0 ]; then
@@ -52,7 +71,7 @@ fi
 # bin
 PYBIN="/usr/bin/python"
 UNZIP_BIN="/usr/bin/unzip"
-YUM_BIN="/usr/bin/aptitude"
+YUM_BIN="/usr/bin/apt-get"
 TAR_BIN="/bin/tar"
 PERL_BIN="/usr/bin/perl"
 
@@ -69,7 +88,7 @@ PYMSSQL="pymssql-2.1.1"
 FREETDS="freetds-0.91"
 PYCRYPTO="pycrypto-2.6.1"
 ECDSA="ecdsa-0.11"
-PARAMIKO="paramiko-1.16.0"
+PARAMIKO="paramiko-1.17.0"
 PIL="Imaging-1.1.7"
 SETUPTOOLS="setuptools-18.3"
 SUDS="suds-jurko-0.6"
@@ -77,12 +96,15 @@ REQUESTS="requests-2.7.0"
 NTLM="python-ntlm-1.1.0"
 KERBEROS="kerberos-1.2.2"
 POSTGRESQL="psycopg2-2.6.1"
-XLRD="xlrd-0.9.4"
+XLRD="xlrd-1.0.0"
+XLWT="xlwt-1.1.2"
 OPENXL="openpyxl-2.3.0-b2"
 ETXMLFILE="et_xmlfile-1.0.0"
 JDCAL="jdcal-1.0"
 SETUPTOOLS_GIT="setuptools-git-1.1"
 SCANDIR="scandir-1.1"
+PYCNIC_TAR="pycnic-0.0.5-extensivetesting"
+PYCNIC="pycnic-0.0.5"
 
 # websocket module for apache, only for centos 5/6
 MOD_WSTUNNEL="mod_proxy_wstunnel.so"
@@ -137,15 +159,13 @@ else
 fi
 echo_success; echo
 
-
-
 # search because it is mandatory during the installation
 echo -n "* Detecting system commands"
 [ -f "$PERL_BIN" ] || { echo_failure; echo; echo "perl is missing" >> "$LOG_FILE"; exit_on_error ;}
 [ -f "$PYBIN" ] || { echo_failure; echo; echo "python is missing" >> "$LOG_FILE"; exit_on_error ;}
 [ -f "$UNZIP_BIN" ] || { echo_failure; echo; echo "unzip is missing" >> "$LOG_FILE"; exit_on_error ;}
 [ -f "$TAR_BIN" ] || { echo_failure; echo; echo "tar is missing" >> "$LOG_FILE"; exit_on_error ;}
-[ -f "$YUM_BIN" ] || { echo_failure; echo; echo "aptitude is missing" >> "$LOG_FILE"; exit_on_error ;}
+[ -f "$YUM_BIN" ] || { echo_failure; echo; echo "apt-get is missing" >> "$LOG_FILE"; exit_on_error ;}
 echo_success; echo
 
 # logging version in log file
@@ -310,7 +330,7 @@ if [ "$SILENT" == "custom" ]; then
 	$PERL_BIN -i -pe "s/CONFIG_APACHE=.*/CONFIG_APACHE=$WEB_CONFIG/g" "$APP_PATH"/default.cfg
 
 	if [ "$WEB_CONFIG" = "Yes" ]; then
-		echo -n "* What is the directory that contains the httpd conf file? [$HTTPD_CONF]"
+		echo -n "* What is the directory that contains the apache2 conf file? [$HTTPD_CONF]"
 		read reply
 		HTTPD_PATH="${reply}"
 		if [ -z "$reply" ]; then
@@ -318,7 +338,7 @@ if [ "$SILENT" == "custom" ]; then
 		fi
 		$PERL_BIN -i -pe "s/HTTPD_CONF=.*/HTTPD_CONF=$(echo $HTTPD_PATH | sed -e 's/[]\/()$*.^|[]/\\&/g')/g" "$APP_PATH"/default.cfg
 
-		echo -n "* What is the directory that contains the httpd virtual host conf files? [$HTTPD_VS_CONF]"
+		echo -n "* What is the directory that contains the apache2 virtual host conf files? [$HTTPD_VS_CONF]"
 		read reply
 		HTTPD_VS_CONF_PATH="${reply}"
 		if [ -z "$reply" ]; then
@@ -327,14 +347,7 @@ if [ "$SILENT" == "custom" ]; then
 		$PERL_BIN -i -pe "s/HTTPD_VS_CONF=.*/HTTPD_VS_CONF=$(echo $HTTPD_VS_CONF_PATH | sed -e 's/[]\/()$*.^|[]/\\&/g')/g" "$APP_PATH"/default.cfg
 	fi
 
-	#echo -n "* Do you want to configure selinux automatically? [$CONFIG_SELINUX]"
-	#read reply
-	#SELINUX_CONFIG="${reply}"
-	#if [ -z "$reply" ]; then
-	#	SELINUX_CONFIG=$CONFIG_SELINUX
-	#fi
-	#$PERL_BIN -i -pe "s/CONFIG_SELINUX=.*/CONFIG_SELINUX=$SELINUX_CONFIG/g" "$APP_PATH"/default.cfg
-
+	
 	echo -n "* What is the path of the openssl binary? [$OPENSSL]"
 	read reply
 	SSL_BIN="${reply}"
@@ -361,7 +374,6 @@ else
 	WEB_CONFIG=$CONFIG_APACHE
 	HTTPD_PATH=$HTTPD_CONF
 	HTTPD_VS_CONF_PATH=$HTTPD_VS_CONF
-	SELINUX_CONFIG=$CONFIG_SELINUX
 	SSL_BIN=$OPENSSL
     if [ "$SILENT" == "install" ]; then
         EXT_IP=$PRIMARY_IP
@@ -383,7 +395,7 @@ if [ "$DL_MISSING_PKGS" = "Yes" ]; then
 	$YUM_BIN -y install postfix dos2unix openssl tcpdump mlocate vim net-snmp-utils unzip zip 1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         echo_failure; echo
-        echo "Unable to download packages basics with aptitude" >> "$LOG_FILE"
+        echo "Unable to download packages basics with apt-get" >> "$LOG_FILE"
         exit_on_error
     fi
         
@@ -395,15 +407,15 @@ if [ "$DL_MISSING_PKGS" = "Yes" ]; then
 	fi
     if [ $? -ne 0 ]; then
         echo_failure; echo
-        echo "Unable to download packages mysql with aptitude" >> "$LOG_FILE"
+        echo "Unable to download packages mysql with apt-get" >> "$LOG_FILE"
         exit_on_error
     fi
     
     echo -ne "* Adding external libraries ...\r" 
-	$YUM_BIN -y install httpd mod_ssl php php-mysql php-gd php-pear  1>> "$LOG_FILE" 2>&1
+	$YUM_BIN -y install apache2 mod_ssl php php-mysql php-gd php-pear  1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         echo_failure; echo
-        echo "Unable to download packages httpd and more with aptitude" >> "$LOG_FILE"
+        echo "Unable to download packages apache2 and more with apt-get" >> "$LOG_FILE"
         exit_on_error
     fi
     
@@ -411,7 +423,7 @@ if [ "$DL_MISSING_PKGS" = "Yes" ]; then
 	$YUM_BIN -y install python-lxml MySQL-python policycoreutils-python python-simplejson python-twisted-web python-setuptools python-ldap 1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         echo_failure; echo
-        echo "Unable to download packages python and more with aptitude" >> "$LOG_FILE"
+        echo "Unable to download packages python and more with apt-get" >> "$LOG_FILE"
         exit_on_error
     fi
     
@@ -419,7 +431,7 @@ if [ "$DL_MISSING_PKGS" = "Yes" ]; then
 	$YUM_BIN -y install gcc python-devel Cython 1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         echo_failure; echo
-        echo "Unable to download packages gcc and more with aptitude" >> "$LOG_FILE"
+        echo "Unable to download packages gcc and more with apt-get" >> "$LOG_FILE"
         exit_on_error
     fi
 
@@ -427,7 +439,7 @@ if [ "$DL_MISSING_PKGS" = "Yes" ]; then
 	$YUM_BIN -y install java >> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         echo_failure; echo
-        echo "Unable to download packages java and more with aptitude" >> "$LOG_FILE"
+        echo "Unable to download packages java and more with apt-get" >> "$LOG_FILE"
         exit_on_error
     fi
 
@@ -435,7 +447,7 @@ if [ "$DL_MISSING_PKGS" = "Yes" ]; then
 	$YUM_BIN -y install libpng-devel libjpeg-devel zlib-devel freetype-devel lcms-devel tk-devel tkinter nmap >> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         echo_failure; echo
-        echo "Unable to download packages freetype and more with aptitude" >> "$LOG_FILE"
+        echo "Unable to download packages freetype and more with apt-get" >> "$LOG_FILE"
         exit_on_error
     fi
     
@@ -443,7 +455,7 @@ if [ "$DL_MISSING_PKGS" = "Yes" ]; then
 	$YUM_BIN -y install postgresql postgresql-libs postgresql-devel >> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         echo_failure; echo
-        echo "Unable to download packages freetype and more with aptitude" >> "$LOG_FILE"
+        echo "Unable to download packages freetype and more with apt-get" >> "$LOG_FILE"
         exit_on_error
     fi
     
@@ -679,7 +691,21 @@ if [ "$INSTALL_EMBEDDED_PKGS" = "Yes" ]; then
 	$PYBIN setup.py install 1>> "$LOG_FILE" 2>&1
 	cd .. 1>> "$LOG_FILE" 2>&1
 	rm -rf $APP_PATH/$SCANDIR/ 1>> "$LOG_FILE" 2>&1
+    
+    echo -ne "* Installing embedded libraries ...........................\r"
+    $TAR_BIN xvf $PKG_PATH/$PYCNIC_TAR.tar.gz  1>> "$LOG_FILE" 2>&1
+	cd $APP_PATH/$PYCNIC/
+	$PYBIN setup.py install 1>> "$LOG_FILE" 2>&1
+	cd .. 1>> "$LOG_FILE" 2>&1
+	rm -rf $APP_PATH/$PYCNIC/ 1>> "$LOG_FILE" 2>&1
 
+    echo -ne "* Installing embedded libraries ............................\r"
+    $TAR_BIN xvf $PKG_PATH/$XLWT.tar.gz  1>> "$LOG_FILE" 2>&1
+	cd $APP_PATH/$XLWT/
+	$PYBIN setup.py install 1>> "$LOG_FILE" 2>&1
+	cd .. 1>> "$LOG_FILE" 2>&1
+	rm -rf $APP_PATH/$XLWT/ 1>> "$LOG_FILE" 2>&1
+    
 	echo_success; echo
 fi
 
@@ -867,9 +893,9 @@ fi
 if [ "$WEB_CONFIG" = "Yes" ]; then
 
 	echo -n "* Updating $HTTPD_SERVICE_NAME configuration"
-	cp -rf $HTTPD_PATH/httpd.conf $HTTPD_PATH/httpd.conf.backup 1>> "$LOG_FILE" 2>&1
-	$PERL_BIN -i -pe "s/Listen 80.*/Listen $EXTERNAL_WEB_PORT\n/g" $HTTPD_PATH/httpd.conf 1>> "$LOG_FILE" 2>&1
-	$PERL_BIN -i -pe "s/ServerSignature.*/ServerSignature Off/g" $HTTPD_PATH/httpd.conf 1>> "$LOG_FILE" 2>&1
+	cp -rf $HTTPD_PATH/apache2.conf $HTTPD_PATH/apache2.conf.backup 1>> "$LOG_FILE" 2>&1
+	$PERL_BIN -i -pe "s/Listen 80.*/Listen $EXTERNAL_WEB_PORT\n/g" $HTTPD_PATH/apache2.conf 1>> "$LOG_FILE" 2>&1
+	$PERL_BIN -i -pe "s/ServerSignature.*/ServerSignature Off/g" $HTTPD_PATH/apache2.conf 1>> "$LOG_FILE" 2>&1
 
 	cp -rf $HTTPD_VS_CONF_PATH/ssl.conf $HTTPD_VS_CONF_PATH/ssl.conf.backup 1>> "$LOG_FILE" 2>&1
 	$PERL_BIN -i -pe "s/Listen 443.*/Listen $EXTERNAL_WEB_PORT_SSL\n/g" $HTTPD_VS_CONF_PATH/ssl.conf 1>> "$LOG_FILE" 2>&1
@@ -877,32 +903,37 @@ if [ "$WEB_CONFIG" = "Yes" ]; then
 
 	if [ "$OS_RELEASE" != "7" ]; then
 		echo -n "* Adding wstunnel module"
-		cp -rf "$PKG_PATH"/mod_proxy_wstunnel.so /etc/httpd/modules/
+		cp -rf "$PKG_PATH"/mod_proxy_wstunnel.so /etc/apache2/modules/
 		echo_success; echo
 	fi
 
 	echo -n "* Adding virtual host"
-	cp -rf "$APP_SRC_PATH"/Scripts/httpd.conf "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_IP>/$EXT_IP/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_IP_LOCAL>/$LOCALHOST_IP/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_WEB_PORT>/$INTERNAL_WEB_PORT/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_RP_PORT_SSL>/$EXTERNAL_WEB_PORT_SSL/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_RP_PORT>/$EXTERNAL_WEB_PORT/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_RPC_PORT>/$INTERNAL_RPC_PORT/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_DATA_CLIENT_PORT>/$INTERNAL_DATA_CLIENT_PORT/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_DATA_AGENT_PORT>/$INTERNAL_DATA_AGENT_PORT/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_DATA_PROBE_PORT>/$INTERNAL_DATA_PROBE_PORT/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_FQDN>/$EXT_FQDN/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_USERNAME>/$PRODUCT_SVC_NAME/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	$PERL_BIN -i -pe "s/<KEY_INSTALL>/$(echo $INSTALL_PATH/current/ | sed -e 's/[]\/()$*.^|[]/\\&/g' )/g" "$INSTALL_PATH"/current/Var/Run/httpd.conf
-	dos2unix "$INSTALL_PATH"/current/Var/Run/httpd.conf 1>> "$LOG_FILE" 2>&1
+	cp -rf "$APP_SRC_PATH"/Scripts/apache2.conf "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_IP>/$EXT_IP/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_IP_LOCAL>/$LOCALHOST_IP/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_WEB_PORT>/$INTERNAL_WEB_PORT/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_RP_PORT_SSL>/$EXTERNAL_WEB_PORT_SSL/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_RP_PORT>/$EXTERNAL_WEB_PORT/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_RPC_PORT>/$INTERNAL_RPC_PORT/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_REST_PORT>/$INTERNAL_REST_PORT/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_DATA_CLIENT_PORT>/$INTERNAL_DATA_CLIENT_PORT/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_DATA_AGENT_PORT>/$INTERNAL_DATA_AGENT_PORT/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_DATA_PROBE_PORT>/$INTERNAL_DATA_PROBE_PORT/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_FQDN>/$EXT_FQDN/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_USERNAME>/$PRODUCT_SVC_NAME/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	$PERL_BIN -i -pe "s/<KEY_INSTALL>/$(echo $INSTALL_PATH/current/ | sed -e 's/[]\/()$*.^|[]/\\&/g' )/g" "$INSTALL_PATH"/current/Var/Run/apache2.conf
+	dos2unix "$INSTALL_PATH"/current/Var/Run/apache2.conf 1>> "$LOG_FILE" 2>&1
 
 	rm -f $HTTPD_VS_CONF_PATH/$PRODUCT_SVC_NAME.conf 1>> $LOG_FILE 2>&1
-	ln -s "$INSTALL_PATH"/current/Var/Run/httpd.conf $HTTPD_VS_CONF_PATH/$PRODUCT_SVC_NAME.conf
+	ln -s "$INSTALL_PATH"/current/Var/Run/apache2.conf $HTTPD_VS_CONF_PATH/$PRODUCT_SVC_NAME.conf
 	echo_success; echo
 fi
 
-#Restart all services
+#######################################
+#
+# Restart all services
+#
+#######################################
 if [ "$WEB_CONFIG" = "Yes" -o "$PHP_CONFIG" = "Yes" ] ; then
 	echo -n "* Restarting $HTTPD_SERVICE_NAME"
 	if [ "$OS_RELEASE" == "7" ]; then
