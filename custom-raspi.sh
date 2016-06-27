@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # -------------------------------------------------------------------
 # Copyright (c) 2010-2016 Denis Machard
@@ -34,10 +34,10 @@
 #. /etc/rc.d/init.d/functions
 
 # first check for root user
-if [ ! $UID -eq 0 ]; then
-    echo "This script must be run as root."
-    exit 1
-fi
+#if [ ! $UID -eq 1000 ]; then
+#    echo "This script must be run as root."
+#    exit 1
+#fi
 
 # check if this script is called with silent 
 # used with update mode
@@ -107,7 +107,7 @@ PYCNIC_TAR="pycnic-0.0.5-extensivetesting"
 PYCNIC="pycnic-0.0.5"
 
 # websocket module for apache, only for centos 5/6
-MOD_WSTUNNEL="mod_proxy_wstunnel.so"
+# MOD_WSTUNNEL="mod_proxy_wstunnel.so"
 
 
 usage(){
@@ -145,7 +145,7 @@ if [ "$OS_NAME" != "raspbian" -a "$OS_NAME" != "debian" -a "$OS_RELEASE" -lt 70 
 else
 	echo -n " ($OS_NAME $OS_RELEASE)"
 fi
-echo_success; echo
+
 
 echo -n "* Detecting the system architecture"
 OS_ARCH=$(uname -m)
@@ -157,7 +157,7 @@ if [ "$OS_NAME" != "arm7l"]; then
 else
 	echo -n " ($OS_ARCH)"
 fi
-echo_success; echo
+
 
 # search because it is mandatory during the installation
 echo -n "* Detecting system commands"
@@ -166,7 +166,7 @@ echo -n "* Detecting system commands"
 [ -f "$UNZIP_BIN" ] || { echo_failure; echo; echo "unzip is missing" >> "$LOG_FILE"; exit_on_error ;}
 [ -f "$TAR_BIN" ] || { echo_failure; echo; echo "tar is missing" >> "$LOG_FILE"; exit_on_error ;}
 [ -f "$YUM_BIN" ] || { echo_failure; echo; echo "apt-get is missing" >> "$LOG_FILE"; exit_on_error ;}
-echo_success; echo
+
 
 # logging version in log file
 cat /etc/issue 1>> "$LOG_FILE" 2>&1
@@ -191,7 +191,7 @@ else
         echo -n " ($PRIMARY_IP)"
     fi
 fi
-echo_success; echo
+
 
 if echo "$INSTALL" | egrep -q "[[:space:]]" ; then
         echo 'Whitespace on install path not supported'
@@ -390,9 +390,13 @@ if [ "$SILENT" == "custom" -o  "$SILENT" == "install" ]; then
 	fi
 fi
 
+
+ 
+ ################## JUSQUE LA CA VA ####################
+
 if [ "$DL_MISSING_PKGS" = "Yes" ]; then
 	echo -ne "* Adding external libraries .\r" 
-	$YUM_BIN -y install postfix dos2unix openssl tcpdump mlocate vim net-snmp-utils unzip zip 1>> "$LOG_FILE" 2>&1
+	$YUM_BIN -y install postfix dos2unix openssl tcpdump mlocate vim snmpd snmp-mibs-downloader libsnmp-dev unzip zip 1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         echo_failure; echo
         echo "Unable to download packages basics with apt-get" >> "$LOG_FILE"
@@ -401,7 +405,7 @@ if [ "$DL_MISSING_PKGS" = "Yes" ]; then
         
     echo -ne "* Adding external libraries ..\r" 
 	if [ "$OS_RELEASE" == "7" ]; then
-		$YUM_BIN -y install mariadb-server mariadb mariadb-devel 1>> "$LOG_FILE" 2>&1
+		$YUM_BIN -y install mariadb-server mariadb-client 1>> "$LOG_FILE" 2>&1
 	else
 		$YUM_BIN -y install mysql-server mysql 1>> "$LOG_FILE" 2>&1
 	fi
@@ -412,15 +416,17 @@ if [ "$DL_MISSING_PKGS" = "Yes" ]; then
     fi
     
     echo -ne "* Adding external libraries ...\r" 
-	$YUM_BIN -y install apache2 mod_ssl php php-mysql php-gd php-pear  1>> "$LOG_FILE" 2>&1
+	$YUM_BIN -y install apache2 openssl php5 php5-mysql php5-gd php-pear  1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         echo_failure; echo
         echo "Unable to download packages apache2 and more with apt-get" >> "$LOG_FILE"
         exit_on_error
     fi
     
+    
+ 
 	echo -ne "* Adding external libraries ....\r"
-	$YUM_BIN -y install python-lxml MySQL-python policycoreutils-python python-simplejson python-twisted-web python-setuptools python-ldap 1>> "$LOG_FILE" 2>&1
+	$YUM_BIN -y install python-lxml python-mysqldb policycoreutils-python python-simplejson python-twisted-web python-setuptools python-ldap 1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         echo_failure; echo
         echo "Unable to download packages python and more with apt-get" >> "$LOG_FILE"
