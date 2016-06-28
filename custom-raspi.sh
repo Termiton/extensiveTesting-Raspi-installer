@@ -34,10 +34,10 @@
 #. /etc/rc.d/init.d/functions
 
 # first check for root user
-#if [ ! $UID -eq 1000 ]; then
-#    echo "This script must be run as root."
-#    exit 1
-#fi
+if [ ! $UID -eq 1000 ]; then
+    echo "This script must be run as root."
+    exit 1
+fi
 
 # check if this script is called with silent 
 # used with update mode
@@ -115,7 +115,7 @@ usage(){
 	exit 1
 }
 
-exit_on_error()
+exit()
 {
     rm -rf "$APP_PATH"/default.cfg.tmp 1>> "$LOG_FILE" 2>&1
     exit 1
@@ -124,11 +124,11 @@ exit_on_error()
 # add some protections before to start installation
 if [ ! -d "$PKG_PATH" ]; then
         echo 'PKG folder is missing!'
-        exit_on_error
+        exit
 fi
 if [ ! -d "$APP_SRC_PATH" ]; then
         echo 'Source folder is missing!'
-        exit_on_error
+        exit
 fi
 
 # Get system name: raspbian or debian or ubuntu and release version
@@ -139,9 +139,8 @@ OS_RELEASE=$(cat /etc/debian_version | awk {'print $1}' | awk '{print tolower($0
 OS_RELEASE=$( echo $OS_RELEASE | sed -r 's/(.)[^.]*\.?/\L\1/g' )
 
 if [ "$OS_NAME" != "raspbian" -a "$OS_NAME" != "debian" -a "$OS_RELEASE" -lt 70 ]; then
-	echo_failure; echo
 	echo "OS unknown: $OS_NAME$OS_RELEASE" >> "$LOG_FILE"
-	exit_on_error
+	exit 1
 else
 	echo -n " ($OS_NAME $OS_RELEASE)"
 fi
@@ -151,9 +150,8 @@ echo -n "* Detecting the system architecture"
 OS_ARCH=$(uname -m)
 
 if [ "$OS_NAME" != "arm7l"]; then
-	echo_failure; echo
 	echo "OS arch not supported: $OS_ARCH" >> "$LOG_FILE"
-	exit_on_error
+	exit 1
 else
 	echo -n " ($OS_ARCH)"
 fi
@@ -161,11 +159,11 @@ fi
 
 # search because it is mandatory during the installation
 echo -n "* Detecting system commands"
-[ -f "$PERL_BIN" ] || { echo_failure; echo; echo "perl is missing" >> "$LOG_FILE"; exit_on_error ;}
-[ -f "$PYBIN" ] || { echo_failure; echo; echo "python is missing" >> "$LOG_FILE"; exit_on_error ;}
-[ -f "$UNZIP_BIN" ] || { echo_failure; echo; echo "unzip is missing" >> "$LOG_FILE"; exit_on_error ;}
-[ -f "$TAR_BIN" ] || { echo_failure; echo; echo "tar is missing" >> "$LOG_FILE"; exit_on_error ;}
-[ -f "$YUM_BIN" ] || { echo_failure; echo; echo "apt-get is missing" >> "$LOG_FILE"; exit_on_error ;}
+[ -f "$PERL_BIN" ] || { echo "perl is missing" >> "$LOG_FILE"; exit 1 ;}
+[ -f "$PYBIN" ] || { echo "python is missing" >> "$LOG_FILE"; exit 1 ;}
+[ -f "$UNZIP_BIN" ] || { echo "unzip is missing" >> "$LOG_FILE"; exit 1 ;}
+[ -f "$TAR_BIN" ] || { echo "tar is missing" >> "$LOG_FILE"; exit 1 ;}
+[ -f "$YUM_BIN" ] || { echo "apt-get is missing" >> "$LOG_FILE"; exit 1 ;}
 
 
 # logging version in log file
@@ -184,9 +182,9 @@ if [ "$SILENT" == "update" ]; then
 else
     PRIMARY_IP=$(ip addr show | grep -E '^\s*inet' | grep -m1 global | awk '{ print $2 }' | sed 's|/.*||')
     if [ "$PRIMARY_IP" == "" ]; then
-        echo_failure; echo
+
         echo "No primary ip detected" >> "$LOG_FILE"
-        exit_on_error
+        exit 1
     else
         echo -n " ($PRIMARY_IP)"
     fi
@@ -195,7 +193,7 @@ fi
 
 if echo "$INSTALL" | egrep -q "[[:space:]]" ; then
         echo 'Whitespace on install path not supported'
-        exit_on_error
+        exit 1
 fi
 
 if [ "$SILENT" == "custom" ]; then
@@ -391,78 +389,74 @@ if [ "$SILENT" == "custom" -o  "$SILENT" == "install" ]; then
 fi
 
 
- 
- ################## JUSQUE LA CA VA ####################
+  ################## JUSQUE LA CA VA ####################
+
 
 if [ "$DL_MISSING_PKGS" = "Yes" ]; then
 	echo -ne "* Adding external libraries .\r" 
 	$YUM_BIN -y install postfix dos2unix openssl tcpdump mlocate vim snmpd snmp-mibs-downloader libsnmp-dev unzip zip 1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
-        echo_failure; echo
         echo "Unable to download packages basics with apt-get" >> "$LOG_FILE"
-        exit_on_error
+        exit 1
     fi
         
     echo -ne "* Adding external libraries ..\r" 
-	if [ "$OS_RELEASE" == "7" ]; then
-		$YUM_BIN -y install mariadb-server mariadb-client 1>> "$LOG_FILE" 2>&1
-	else
-		$YUM_BIN -y install mysql-server mysql 1>> "$LOG_FILE" 2>&1
-	fi
+	$YUM_BIN -y install mariadb-server mariadb-client 1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
-        echo_failure; echo
         echo "Unable to download packages mysql with apt-get" >> "$LOG_FILE"
-        exit_on_error
+        exit 1
     fi
     
     echo -ne "* Adding external libraries ...\r" 
 	$YUM_BIN -y install apache2 openssl php5 php5-mysql php5-gd php-pear  1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
-        echo_failure; echo
         echo "Unable to download packages apache2 and more with apt-get" >> "$LOG_FILE"
-        exit_on_error
+        exit 1
     fi
     
-    
+     ################## JUSQUE LA CA VA ####################
  
+ # policycoreutils-python  introuvable
 	echo -ne "* Adding external libraries ....\r"
-	$YUM_BIN -y install python-lxml python-mysqldb policycoreutils-python python-simplejson python-twisted-web python-setuptools python-ldap 1>> "$LOG_FILE" 2>&1
+	$YUM_BIN -y install python-lxml python-mysqldb python-simplejson python-twisted-web python-setuptools python-ldap 1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
-        echo_failure; echo
         echo "Unable to download packages python and more with apt-get" >> "$LOG_FILE"
-        exit_on_error
+        exit 1
     fi
     
 	echo -ne "* Adding external libraries .....\r"
-	$YUM_BIN -y install gcc python-devel Cython 1>> "$LOG_FILE" 2>&1
+	$YUM_BIN -y install gcc python-dev Cython 1>> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
-        echo_failure; echo
         echo "Unable to download packages gcc and more with apt-get" >> "$LOG_FILE"
-        exit_on_error
+        exit 1
     fi
 
 	echo -ne "* Adding external libraries ......\r"
-	$YUM_BIN -y install java >> "$LOG_FILE" 2>&1
+	$YUM_BIN -y install oracle-java7-jdk >> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
-        echo_failure; echo
         echo "Unable to download packages java and more with apt-get" >> "$LOG_FILE"
-        exit_on_error
+        exit 1
     fi
 
 	echo -ne "* Adding external libraries .......\r"
-	$YUM_BIN -y install libpng-devel libjpeg-devel zlib-devel freetype-devel lcms-devel tk-devel tkinter nmap >> "$LOG_FILE" 2>&1
+	$YUM_BIN -y install libpng-dev libjpeg-dev zlib1g-dev libfreetype6-dev liblcms-dev tk-dev python-tk nmap >> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
-        echo_failure; echo
         echo "Unable to download packages freetype and more with apt-get" >> "$LOG_FILE"
-        exit_on_error
+        exit 1
     fi
     
 	echo -ne "* Adding external libraries ........\r"
-	$YUM_BIN -y install postgresql postgresql-libs postgresql-devel >> "$LOG_FILE" 2>&1
+	$YUM_BIN -y install postgresql-9.1 postgresql libghc-hsql-postgresql-dev libghc-hsql-postgresql-dev >> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
-        echo_failure; echo
         echo "Unable to download packages freetype and more with apt-get" >> "$LOG_FILE"
-        exit_on_error
+        exit 1
+    fi
+    
+    echo -ne "* Adding alien ........\r"
+	$YUM_BIN -y install alien >> "$LOG_FILE" 2>&1
+    if [ $? -ne 0 ]; then
+        echo "Unable to download alien with apt-get" >> "$LOG_FILE"
+        exit 1
     fi
     
 	# chkconfig
@@ -476,7 +470,6 @@ if [ "$DL_MISSING_PKGS" = "Yes" ]; then
 		chkconfig $MYSQL_SERVICE_NAME on 345 1>> "$LOG_FILE" 2>&1
 	fi
 
-	echo_success; echo
 fi
 
 if [ "$INSTALL_EMBEDDED_PKGS" = "Yes" ]; then
@@ -569,11 +562,11 @@ if [ "$INSTALL_EMBEDDED_PKGS" = "Yes" ]; then
 	echo -ne "* Installing embedded libraries ..........\r"
 	# install php-mcrypt
 	if [ "$OS_RELEASE" != "7" ]; then
-		rpm -ivh $PKG_PATH/libmcrypt-2.5.8-9.el6.x86_64.rpm 1>> "$LOG_FILE" 2>&1
-		rpm -ivh $PKG_PATH/php-mcrypt-5.3.3-3.el6.x86_64.rpm 1>> "$LOG_FILE" 2>&1
+		alien -i $PKG_PATH/libmcrypt-2.5.8-9.el6.x86_64.rpm 1>> "$LOG_FILE" 2>&1
+		alien -i  $PKG_PATH/php-mcrypt-5.3.3-3.el6.x86_64.rpm 1>> "$LOG_FILE" 2>&1
 	else
-		rpm -ivh $PKG_PATH/libmcrypt-2.5.8-13.el7.x86_64.rpm 1>> "$LOG_FILE" 2>&1
-		rpm -ivh $PKG_PATH/php-mcrypt-5.4.16-2.el7.x86_64.rpm 1>> "$LOG_FILE" 2>&1
+		alien -i  $PKG_PATH/libmcrypt-2.5.8-13.el7.x86_64.rpm 1>> "$LOG_FILE" 2>&1
+		alien -i  $PKG_PATH/php-mcrypt-5.4.16-2.el7.x86_64.rpm 1>> "$LOG_FILE" 2>&1
 	fi
 
 	echo -ne "* Installing embedded libraries ............\r"
@@ -684,11 +677,11 @@ if [ "$INSTALL_EMBEDDED_PKGS" = "Yes" ]; then
 	echo -ne "* Installing embedded libraries ..........................\r"
 	# install lib for postgresql
 	if [ "$OS_RELEASE" != "7" ]; then
-		rpm -ivh $PKG_PATH/libpqxx-4.0.1-2.el6.x86_64.rpm 1>> "$LOG_FILE" 2>&1
-		rpm -ivh $PKG_PATH/libpqxx-devel-4.0.1-2.el6.x86_64.rpm 1>> "$LOG_FILE" 2>&1
+		alien -i  $PKG_PATH/libpqxx-4.0.1-2.el6.x86_64.rpm 1>> "$LOG_FILE" 2>&1
+		alien -i  $PKG_PATH/libpqxx-devel-4.0.1-2.el6.x86_64.rpm 1>> "$LOG_FILE" 2>&1
 	else
-		rpm -ivh $PKG_PATH/libpqxx-4.0.1-1.el7.x86_64.rpm 1>> "$LOG_FILE" 2>&1
-		rpm -ivh $PKG_PATH/libpqxx-devel-4.0.1-1.el7.x86_64.rpm 1>> "$LOG_FILE" 2>&1
+		alien -i  $PKG_PATH/libpqxx-4.0.1-1.el7.x86_64.rpm 1>> "$LOG_FILE" 2>&1
+		alien -i  $PKG_PATH/libpqxx-devel-4.0.1-1.el7.x86_64.rpm 1>> "$LOG_FILE" 2>&1
 	fi
     
     echo -ne "* Installing embedded libraries ..........................\r"
@@ -712,28 +705,23 @@ if [ "$INSTALL_EMBEDDED_PKGS" = "Yes" ]; then
 	cd .. 1>> "$LOG_FILE" 2>&1
 	rm -rf $APP_PATH/$XLWT/ 1>> "$LOG_FILE" 2>&1
     
-	echo_success; echo
+
 fi
 
 echo -n "* Detecting Apache"
-[ -f "$HTTPD" ] || { echo_failure; echo; echo "$HTTPD_SERVICE_NAME is missing" >> "$LOG_FILE"; exit_on_error ;}
-echo_success; echo
+[ -f "$HTTPD" ] || { echo "$HTTPD_SERVICE_NAME is missing" >> "$LOG_FILE"; exit 1;}
 
 echo -n "* Detecting MySQL/MariaDB"
-[ -f "$MYSQLD" ] || { echo_failure; echo; echo "$MYSQL_SERVICE_NAME is missing" >> "$LOG_FILE"; exit_on_error ;}
-echo_success; echo
+[ -f "$MYSQLD" ] || { echo "$MYSQL_SERVICE_NAME is missing" >> "$LOG_FILE"; exit 1;}
 
 echo -n "* Detecting Postfix"
-[ -f "$POSTFIX" ] || { echo_failure; echo; echo "$POSTFIX_SERVICE_NAME is missing" >> "$LOG_FILE"; exit_on_error ;}
-echo_success; echo
+[ -f "$POSTFIX" ] || { echo "$POSTFIX_SERVICE_NAME is missing" >> "$LOG_FILE"; exit 1;}
 
 echo -n "* Detecting Openssl"
-[ -f "$OPENSSL" ] || { echo_failure; echo; echo "openssl is missing" >> "$LOG_FILE"; exit_on_error ;}
-echo_success; echo
+[ -f "$OPENSSL" ] || { echo "openssl is missing" >> "$LOG_FILE"; exit 1;}
 
 echo -n "* Detecting Php"
-[ -f "$PHP_CONF" ] || { echo_failure; echo; echo "php is missing" >> "$LOG_FILE"; exit_on_error ;}
-echo_success; echo
+[ -f "$PHP_CONF" ] || { echo "php is missing" >> "$LOG_FILE"; exit 1;}
 
 # copy source
 echo -n "* Preparing destination"
@@ -742,29 +730,29 @@ if [ "$SILENT" == "custom" -o "$SILENT" == "install" ]; then
 	rm -rf "$INSTALL_PATH"/$APP_NAME-$PRODUCT_VERSION 1>> "$LOG_FILE" 2>&1
 fi
 mkdir -p "$INSTALL_PATH" 1>> "$LOG_FILE" 2>&1
-echo_success; echo
+
 
 # checking space before install
 echo -n "* Checking space left on $INSTALL_PATH"
 FREE_SPACE="$(df -P $INSTALL_PATH | tail -1 | awk '{print $4}')"
 if [[ $FREE_SPACE -lt $MIN_SPACE_LEFT ]]; then
-    echo_failure; echo
+
     echo "Less than 1GB free space left, $FREE_SPACE bytes"
-    exit_on_error
+    exit 1
 fi
-echo_success; echo
+
 
 echo -n "* Copying source files"
 cp -rf "$APP_SRC_PATH"/ "$INSTALL_PATH"/ 1>> "$LOG_FILE" 2>&1
 mv -f "$INSTALL_PATH"/$APP_NAME "$INSTALL_PATH"/$APP_NAME-$PRODUCT_VERSION 1>> "$LOG_FILE" 2>&1
 if [ $? -ne 0 ]; then
-	echo_failure; echo
+
 	echo "Unable to copy sources" >> "$LOG_FILE"
-	exit_on_error
+	exit 1
 fi
 rm -f "$INSTALL_PATH"/current 1>> "$LOG_FILE" 2>&1
 ln -s "$INSTALL_PATH"/$APP_NAME-$PRODUCT_VERSION "$INSTALL_PATH"/current 1>> "$LOG_FILE" 2>&1
-echo_success; echo
+
 
 # Install the product as service
 echo -n "* Adding startup service"
@@ -780,9 +768,8 @@ if [ "$OS_RELEASE" == "7" ]; then
 
 	systemctl enable $PRODUCT_SVC_NAME.service 1>> "$LOG_FILE" 2>&1
 	if [ $? -ne 0 ]; then
-		echo_failure; echo
 		echo "Unable to activate as a service" >> "$LOG_FILE"
-		exit_on_error
+		exit 1
 	fi
 else
 	# update the path, espace the path with sed and the db name 
@@ -798,12 +785,11 @@ else
 	# activate the service
 	chkconfig $PRODUCT_SVC_NAME on 345 1>> "$LOG_FILE" 2>&1
 	if [ $? -ne 0 ]; then
-		echo_failure; echo
 		echo "Unable to activate as a service" >> "$LOG_FILE"
-		exit_on_error
+		exit 1
 	fi
 fi
-echo_success; echo
+
 
 echo -n "* Adding cron scripts"
 
@@ -818,7 +804,7 @@ if [ "$CLEANUP_BACKUPS" = "Yes" ]; then
     rm -f $CRON_WEEKLY/$PRODUCT_SVC_NAME-backups 1>> "$LOG_FILE" 2>&1
     ln -s "$INSTALL_PATH"/current/Scripts/cron.cleanup-backups $CRON_WEEKLY/$PRODUCT_SVC_NAME-backups 1>> "$LOG_FILE" 2>&1
 fi
-echo_success; echo
+
     
 # Updating the config file
 echo -n "* Updating configuration files"
@@ -858,16 +844,16 @@ if [ "$OS_RELEASE" == "7" ]; then
     systemctl daemon-reload 1>> "$LOG_FILE" 2>&1 
 fi
  
-echo_success; echo
+
 
 echo -n "* Creating $PRODUCT_SVC_NAME user"
 useradd $PRODUCT_SVC_NAME 1>> "$LOG_FILE" 2>&1
-echo_success; echo
+
 
 # set folders rights
 echo -n "* Updating folders rights"
 chown $HTTP_USER:$HTTP_USER "$INSTALL_PATH"/current/Var/Tests/
-echo_success; echo
+
 
 if [ "$FW_CONFIG" = "Yes" ]; then
 	if [ "$OS_RELEASE" == "7" ]; then
@@ -881,11 +867,10 @@ if [ "$FW_CONFIG" = "Yes" ]; then
 	chmod +x "$APP_SRC_PATH"/Scripts/iptables.rules
 	"$APP_SRC_PATH"/Scripts/iptables.rules 1>> "$LOG_FILE" 2>&1
 	if [ $? -ne 0 ]; then
-		echo_failure; echo
 		echo "Unable to configure iptables" >> "$LOG_FILE"
-		exit_on_error
+		exit 1
 	fi
-	echo_success; echo
+
 fi
 
 if [ "$PHP_CONFIG" = "Yes" ]; then
@@ -893,7 +878,7 @@ if [ "$PHP_CONFIG" = "Yes" ]; then
 	cp -rf $PHP_PATH $PHP_PATH.backup 1>> "$LOG_FILE" 2>&1
 	$PERL_BIN -i -pe "s/post_max_size.*/post_max_size = $PHP_MAX_SIZE/g" $PHP_PATH
 	$PERL_BIN -i -pe "s/upload_max_filesize.*/upload_max_filesize = $PHP_MAX_SIZE/g" $PHP_PATH
-	echo_success; echo
+
 fi
 
 if [ "$WEB_CONFIG" = "Yes" ]; then
@@ -905,12 +890,12 @@ if [ "$WEB_CONFIG" = "Yes" ]; then
 
 	cp -rf $HTTPD_VS_CONF_PATH/ssl.conf $HTTPD_VS_CONF_PATH/ssl.conf.backup 1>> "$LOG_FILE" 2>&1
 	$PERL_BIN -i -pe "s/Listen 443.*/Listen $EXTERNAL_WEB_PORT_SSL\n/g" $HTTPD_VS_CONF_PATH/ssl.conf 1>> "$LOG_FILE" 2>&1
-	echo_success; echo
+
 
 	if [ "$OS_RELEASE" != "7" ]; then
 		echo -n "* Adding wstunnel module"
 		cp -rf "$PKG_PATH"/mod_proxy_wstunnel.so /etc/apache2/modules/
-		echo_success; echo
+
 	fi
 
 	echo -n "* Adding virtual host"
@@ -932,7 +917,7 @@ if [ "$WEB_CONFIG" = "Yes" ]; then
 
 	rm -f $HTTPD_VS_CONF_PATH/$PRODUCT_SVC_NAME.conf 1>> $LOG_FILE 2>&1
 	ln -s "$INSTALL_PATH"/current/Var/Run/apache2.conf $HTTPD_VS_CONF_PATH/$PRODUCT_SVC_NAME.conf
-	echo_success; echo
+
 fi
 
 #######################################
@@ -945,19 +930,19 @@ if [ "$WEB_CONFIG" = "Yes" -o "$PHP_CONFIG" = "Yes" ] ; then
 	if [ "$OS_RELEASE" == "7" ]; then
 		systemctl restart $HTTPD_SERVICE_NAME.service 1>> "$LOG_FILE" 2>&1
 		if [ $? -ne 0 ]; then
-			echo_failure; echo
+
 			echo "Unable to restart $HTTPD_SERVICE_NAME" >> "$LOG_FILE"
-			exit_on_error
+			exit 1
 		fi
 	else
 		service $HTTPD_SERVICE_NAME restart 1>> "$LOG_FILE" 2>&1
 		if [ $? -ne 0 ]; then
-			echo_failure; echo
+
 			echo "Unable to restart $HTTPD_SERVICE_NAME" >> "$LOG_FILE"
-			exit_on_error
+			exit 1
 		fi
 	fi
-	echo_success; echo
+
 fi
 
 if [ "$FW_CONFIG" = "Yes" ]; then
@@ -965,19 +950,19 @@ if [ "$FW_CONFIG" = "Yes" ]; then
 	if [ "$OS_RELEASE" == "7" ]; then
 		systemctl restart $IPTABLE_SERVICE_NAME.service 1>> "$LOG_FILE" 2>&1
 		if [ $? -ne 0 ]; then
-			echo_failure; echo
+
 			echo "Unable to restart $IPTABLE_SERVICE_NAME" >> "$LOG_FILE"
-			exit_on_error
+			exit 1
 		fi
 	else
 		service $IPTABLE_SERVICE_NAME restart 1>> "$LOG_FILE" 2>&1
 		if [ $? -ne 0 ]; then
-			echo_failure; echo
+
 			echo "Unable to restart $IPTABLE_SERVICE_NAME" >> "$LOG_FILE"
-			exit_on_error
+			exit 1
 		fi
 	fi
-	echo_success; echo
+
 else
 	if [ "$OS_RELEASE" == "7" ]; then
 		systemctl stop firewalld.service 1>> "$LOG_FILE" 2>&1
@@ -994,65 +979,65 @@ echo -n "* Restarting MySQL/MariaDB"
 if [ "$OS_RELEASE" == "7" ]; then
 	systemctl restart $MARIADB_SERVICE_NAME.service 1>> "$LOG_FILE" 2>&1
 	if [ $? -ne 0 ]; then
-		echo_failure; echo
+
 		echo "Unable to restart $MARIADB_SERVICE_NAME" >> "$LOG_FILE"
-		exit_on_error
+		exit 1
 	fi
 else
 	service $MYSQL_SERVICE_NAME restart 1>> "$LOG_FILE" 2>&1
 	if [ $? -ne 0 ]; then
-		echo_failure; echo
+ 
 		echo "Unable to restart $MYSQL_SERVICE_NAME" >> "$LOG_FILE"
-		exit_on_error
+		exit 1
 	fi
 fi
-echo_success; echo
+
 
 echo -n "* Restarting postfix"
 if [ "$OS_RELEASE" == "7" ]; then
 	systemctl restart $POSTFIX_SERVICE_NAME.service 1>> "$LOG_FILE" 2>&1
 	if [ $? -ne 0 ]; then
-		echo_failure; echo
+
 		echo "Unable to restart $POSTFIX_SERVICE_NAME" >> "$LOG_FILE"
-		exit_on_error
+		exit 1
 	fi
 else
 	service $POSTFIX_SERVICE_NAME restart 1>> "$LOG_FILE" 2>&1
 	if [ $? -ne 0 ]; then
-		echo_failure; echo
+
 		echo "Unable to restart $POSTFIX_SERVICE_NAME" >> "$LOG_FILE"
-		exit_on_error
+		exit 1
 	fi
 fi
-echo_success; echo
+
 
 echo -n "* Adding the $APP_NAME database"
 cd "$INSTALL_PATH"/current/Scripts/
 python add-bdd.py 1>> "$LOG_FILE" 2>&1
 if [ $? -ne 0 ]; then
-	echo_failure; echo
+
 	echo "Unable to create the database" >> "$LOG_FILE"
-	exit_on_error
+	exit 1
 fi
-echo_success; echo
+
 
 echo -n "* Starting $APP_NAME $PRODUCT_VERSION"
 if [ "$OS_RELEASE" == "7" ]; then
 	systemctl start $PRODUCT_SVC_NAME.service 1>> "$LOG_FILE" 2>&1
 	if [ $? -ne 0 ]; then
-		echo_failure; echo
+
 		echo "Unable to start the server" >> "$LOG_FILE"
-		exit_on_error
+		exit 1
 	fi
 else
 	service $PRODUCT_SVC_NAME start 1>> "$LOG_FILE" 2>&1
 	if [ $? -ne 0 ]; then
-		echo_failure; echo
+
 		echo "Unable to start the server" >> "$LOG_FILE"
-		exit_on_error
+		exit 1
 	fi
 fi
-echo_success; echo
+
 
 rm -rf "$APP_PATH"/default.cfg.tmp 1>> "$LOG_FILE" 2>&1
 
